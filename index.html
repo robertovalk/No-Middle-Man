@@ -107,6 +107,21 @@
             font-weight: 600;
         }
 
+        .btn-signup {
+            background-color: white; /* O cinza escuro do seu print */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+
+        .btn-signup:hover {
+            background-color: #404040;
+            color: white;
+        }
+
         /* ==============================
            HERO SECTION
            ============================== */
@@ -559,7 +574,9 @@
                     <li><a href="#home">Home</a></li>
                     <li><a href="#services">Services</a></li>
                     <li><a href="#how-it-works">How it works</a></li>
+                    <li><a href="./cadastro-contractor/cadastro-contractor.html" class="btn-signup">Contractor Sign Up</a></li>
                 </ul>
+                
             </nav>
         </div>
     </header>
@@ -578,7 +595,7 @@
                                 <li>Labor quotation & Material list</li>
                                 <li>Installation scheduling</li>
                             </ul>
-                            <a href="#" class="btn-select">Start Direct Process</a>
+                            <a href="./calculadora-mapbox/calculadorampbox.html" class="btn-select">Start Direct Process</a>
                         </div>
                     </details>
                     <details class="featured">
@@ -770,9 +787,8 @@
 
         document.getElementById('leadForm').onsubmit = (e) => {
             e.preventDefault();
-            const msg = `Hi! I'm interested in roofing services at ${document.getElementById('address').value}`;
-            window.open(`https://wa.me/YOURNUMBER?text=${encodeURIComponent(msg)}`, '_blank');
             modal.classList.remove('active');
+            window.location.href = './calculadora-mapbox/calculadorampbox.html';
         }
     </script>
 </body>

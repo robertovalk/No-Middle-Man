@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roof Cost Calculator | No Middle Man</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css' rel='stylesheet' />
+
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.min.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.css" rel="stylesheet" />
+
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.0/mapbox-gl-draw.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.0/mapbox-gl-draw.css" rel="stylesheet" />
+
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
+    <style>
+        :root {
+            --blue: #0071ce;
+            --dark: #1a1a1a;
+            --mid: #555;
+            --white: #ffffff;
+            --border: #e8e8e8;
+            --radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body { font-family: 'DM Sans', sans-serif; background: var(--white); color: var(--dark); overflow-x: hidden; }
+
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 18px 60px; background: var(--white); border-bottom: 1px solid var(--border); }
+        .logo { font-weight: 800; font-size: 17px; text-transform: uppercase; color: var(--dark); text-decoration: none; }
+
+        .page-wrapper { max-width: 900px; margin: 0 auto; padding: 40px 24px; }
+        .page-header { text-align: center; margin-bottom: 30px; }
+
+        /* FIX: Barra de Pesquisa corrigida */
+        .search-container {
+            display: flex;
+            align-items: center;
+            background: #fff;
+            border: 2px solid var(--border);
+            border-radius: 50px;
+            padding: 8px 10px 8px 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        #geocoder { flex: 1; }
+        .mapboxgl-ctrl-geocoder { 
+            box-shadow: none !important; width: 100% !important; max-width: none !important; background: transparent !important;
+        }
+        .mapboxgl-ctrl-geocoder--input { padding: 12px 0 !important; font-size: 16px !important; }
+        .mapboxgl-ctrl-geocoder--icon-search { left: 0 !important; display: none; }
+
+        .btn-start {
+            background: var(--dark);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-start:hover { background: #333; }
+
+        /* Mapa */
+        .map-box { 
+            position: relative; 
+            height: 500px; 
+            width: 100%; 
+            border-radius: 16px; 
+            overflow: hidden; 
+            border: 1px solid var(--border); 
+        }
+        #map { height: 100%; width: 100%; background-color: #f0f0f0; }
+
+        /* Painel de Resultados */
+        #result-panel {
+            position: absolute; bottom: 20px; left: 20px; right: 20px;
+            background: white; padding: 20px; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            display: none; justify-content: space-between; align-items: center;
+            z-index: 10;
+        }
+        .metric-group { display: flex; gap: 30px; }
+        .metric-label { font-size: 11px; font-weight: 700; color: var(--mid); text-transform: uppercase; }
+        .metric-value { font-family: 'DM Mono', monospace; font-size: 22px; color: var(--blue); }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <a href="../index.html" class="logo">No Middle Man</a>
+    </nav>
+
+    <main class="page-wrapper">
+        <div class="page-header">
+            <h1>Roof Finder</h1>
+            <p>Search your address, then draw your roof outline</p>
+        </div>
+
+        <div class="search-container">
+            <div id="geocoder"></div>
+            <button class="btn-start" id="start-btn">START</button>
+        </div>
+
+        <div class="map-box">
+            <div id="map"></div>
+            <div id="result-panel">
+                <div class="metric-group">
+                    <div>
+                        <div class="metric-label">Roof Area</div>
+                        <div class="metric-value" id="val-sqft">0 sqft</div>
+                    </div>
+                    <div>
+                        <div class="metric-label">Roofing Squares</div>
+                        <div class="metric-value" id="val-squares">0 sq</div>
+                    </div>
+                </div>
+                <button class="btn-start" style="background:var(--blue)">Get Quote</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Use o seu Token aqui
+        const token = 'pk.eyJ1IjoiMW1pZGRsZW1hbi0iLCJhIjoiY21ucnloMXBmMDdnNTJ6cTA5enhuZ3J5dyJ9.l-AYio3UMFzHSz7tJwo-uA';
+        mapboxgl.accessToken = token;
+
+        // Inicializa o Mapa
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/satellite-v9',
+            center: [-60.0217, -3.1190], // Manaus como padrão
+            zoom: 2
+        });
+
+        // Adiciona Busca
+        const geocoder = new MapboxGeocoder({
+            accessToken: mapboxgl.accessToken,
+            mapboxgl: mapboxgl,
+            placeholder: 'Enter your address...',
+            zoom: 19
+        });
+        document.getElementById('geocoder').appendChild(geocoder.onAdd(map));
+
+        // Adiciona Ferramenta de Desenho
+        const draw = new MapboxDraw({
+            displayControlsDefault: false,
+            controls: { polygon: true, trash: true }
+        });
+        map.addControl(draw, 'top-left');
+
+        // Lógica do Botão START
+        document.getElementById('start-btn').addEventListener('click', () => {
+            const input = document.querySelector('.mapboxgl-ctrl-geocoder--input');
+            if(input.value) {
+                geocoder.query(input.value);
+            }
+        });
+
+        // Cálculo de Área
+        function updateArea() {
+            const data = draw.getAll();
+            if (data.features.length > 0) {
+                const area = turf.area(data);
+                const areaSqFt = area * 10.7639;
+                document.getElementById('val-sqft').innerText = Math.round(areaSqFt).toLocaleString() + ' sqft';
+                document.getElementById('val-squares').innerText = (areaSqFt / 100).toFixed(1) + ' sq';
+                document.getElementById('result-panel').style.display = 'flex';
+            }
+        }
+
+        map.on('draw.create', updateArea);
+        map.on('draw.update', updateArea);
+        map.on('draw.delete', () => { document.getElementById('result-panel').style.display = 'none'; });
+    </script>
+</body>
+</html>
