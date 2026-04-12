@@ -6,7 +6,7 @@
     <title>Contractor Access - No Middle Man</title>
     <style>
         :root {
-            --primary-green: #10b981; /* Verde esmeralda moderno */
+            --primary-green: #10b981;
             --dark-gray: #1a1a1a;
             --light-bg: #f8fafc;
             --border-color: #e2e8f0;
@@ -71,7 +71,6 @@
             color: var(--primary-green);
         }
 
-        /* Benefícios em formato de Pills */
         .benefits-tags {
             display: flex;
             justify-content: center;
@@ -97,7 +96,6 @@
             font-weight: bold;
         }
 
-        /* FORM CARD MODIFICADO */
         .form-card {
             background: white;
             border-radius: 20px;
@@ -143,7 +141,6 @@
             box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
         }
 
-        /* Estilo do Botão Principal */
         .footer-action {
             margin-top: 2rem;
             display: flex;
@@ -212,42 +209,91 @@
     </div>
 
     <div class="form-card">
-        <form class="form-grid">
+        <form id="contractorForm" class="form-grid">
             <div class="form-group full-width">
                 <label>Company Identity</label>
-                <input type="text" placeholder="Nome da sua empresa">
+                <input type="text" name="nome_empresa" placeholder="Nome da sua empresa" required>
             </div>
 
             <div class="form-group">
                 <label>Phone Number</label>
-                <input type="tel" placeholder="(00) 00000-0000">
+                <input type="tel" name="telefone" placeholder="(00) 00000-0000">
             </div>
 
             <div class="form-group">
                 <label>License Number</label>
-                <input type="text" placeholder="Registro Profissional">
+                <input type="text" name="numero_licenca" placeholder="Registro Profissional">
             </div>
 
             <div class="form-group full-width">
                 <label>Digital Presence</label>
-                <input type="url" placeholder="https://seusite.com.br">
+                <input type="url" name="website" placeholder="https://seusite.com.br">
             </div>
 
             <div class="form-group full-width">
                 <label>Lead Notification Email</label>
-                <input type="email" placeholder="onde quer receber seus clientes?">
+                <input type="email" name="email_notificacao" placeholder="onde quer receber seus clientes?" required>
+            </div>
+
+            <div class="form-group">
+                <label>Create Password</label>
+                <input type="password" id="senha" name="senha" placeholder="••••••••" required>
+            </div>
+
+            <div class="form-group">
+                <label>Confirm Password</label>
+                <input type="password" id="confirmar_senha" placeholder="••••••••" required>
             </div>
 
             <div class="footer-action full-width">
                 <div class="progress-stepper">
                     <div class="progress-fill"></div>
                 </div>
-                <button type="button" class="btn-submit">Criar minha conta de Contractor</button>
+                <button type="submit" class="btn-submit">Criar minha conta de Contractor</button>
                 <p style="font-size: 0.8rem; color: #94a3b8;">Passo 1 de 2: Informações Básicas</p>
             </div>
         </form>
     </div>
 </div>
+
+<script>
+    document.getElementById('contractorForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+
+        // Validação de senhas iguais
+        const senha = document.getElementById('senha').value;
+        const confirma = document.getElementById('confirmar_senha').value;
+
+        if (senha !== confirma) {
+            alert("As senhas não coincidem! Verifique e tente novamente.");
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:3000/api/register-contractor', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                alert('Cadastro realizado com sucesso! Bem-vindo ao time.');
+                e.target.reset();
+                // Opcional: Redirecionar para o login
+                // window.location.href = 'login.html'; 
+            } else {
+                alert('Erro: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Erro na requisição:', error);
+            alert('Não foi possível conectar ao servidor. Verifique se o backend está rodando.');
+        }
+    });
+</script>
 
 </body>
 </html>
