@@ -257,42 +257,44 @@
 </div>
 
 <script>
-    document.getElementById('contractorForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
+document.getElementById('contractorForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+
+    const senha = document.getElementById('senha').value;
+    const confirma = document.getElementById('confirmar_senha').value;
+
+    if (senha !== confirma) {
+        alert("As senhas não coincidem! Verifique e tente novamente.");
+        return;
+    }
+
+    try {
+        const response = await fetch('http://localhost:3000/api/cadastro-contractor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
         
-        const formData = new FormData(e.target);
-        const data = Object.fromEntries(formData.entries());
+        if (response.ok) {
+            // Alerta em inglês instruindo o usuário
+            alert('Registration successful! Please return to the home page to log in to your account.');
+            
+            // Limpa o formulário após o sucesso
+            e.target.reset();
 
-        // Validação de senhas iguais
-        const senha = document.getElementById('senha').value;
-        const confirma = document.getElementById('confirmar_senha').value;
-
-        if (senha !== confirma) {
-            alert("As senhas não coincidem! Verifique e tente novamente.");
-            return;
+        } else {
+            alert('Erro: ' + result.error);
         }
-
-        try {
-            const response = await fetch('http://localhost:3000/api/register-contractor', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-
-            const result = await response.json();
-            if (response.ok) {
-                alert('Cadastro realizado com sucesso! Bem-vindo ao time.');
-                e.target.reset();
-                // Opcional: Redirecionar para o login
-                // window.location.href = 'login.html'; 
-            } else {
-                alert('Erro: ' + result.error);
-            }
-        } catch (error) {
-            console.error('Erro na requisição:', error);
-            alert('Não foi possível conectar ao servidor. Verifique se o backend está rodando.');
-        }
-    });
+    } catch (error) {
+        console.error('Erro na requisição:', error);
+        alert('Não foi possível conectar ao servidor. Verifique se o backend está rodando.');
+    }
+});
 </script>
 
 </body>

@@ -7,34 +7,66 @@ const path = require('path');
 const app = express();
 const port = 3000;
 
-// Configurações
+// 1. Configurações
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Conexão com o banco de dados
+// 2. Conexão com o banco de dados
 const dbPath = path.resolve(__dirname, 'database', 'roofing.db');
-const db = new sqlite3.Database(dbPath);
+const db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+        console.error("❌ ERRO AO ABRIR O BANCO:", err.message);
+    } else {
+        console.log("✅ Conectado ao banco de dados SQLite");
+    }
+});
 
-// Rota para receber o cadastro do contractor
-// Rota para cadastrar Contractors
-app.post('/api/register-contractor', (req, res) => {
-    const { nome_empresa, telefone, numero_licenca, website, email_notificacao, senha } = req.body;
-
-    const query = `INSERT INTO contractors (nome_empresa, telefone, numero_licenca, website, email_notificacao, senha) 
-        VALUES (?, ?, ?, ?, ?, ?)`;
-
-    db.run(query, [nome_empresa, telefone, numero_licenca, website, email_notificacao, senha], function(err) {
+// 3. Rota de Cadastro
+app.post('/api/cadastro-contractor', (req, res) => {
+    const { nome_empresa, telefone, numero_licenca, email_notificacao, senha } = req.body;
+    
+    const query = `INSERT INTO contractors (nome_empresa, telefone, numero_licenca, email_notificacao, senha) VALUES (?, ?, ?, ?, ?)`;
+    
+    db.run(query, [nome_empresa, telefone, numero_licenca, email_notificacao, senha], function(err) {
         if (err) {
-            console.error("Erro ao inserir no SQLite:", err.message);
-            return res.status(500).json({ error: "Erro ao salvar no banco de dados." });
+            console.error("❌ Erro no SQLite (Cadastro):", err.message);
+            return res.status(500).json({ error: "Erro no banco: " + err.message });
         }
-        console.log(`Sucesso! Contractor ${nome_empresa} salvo com ID: ${this.lastID}`);
-        res.status(200).json({ message: "Cadastro realizado com sucesso!" });
+        console.log(`✅ Nova empresa cadastrada: ${nome_empresa}`);
+        res.status(201).json({ message: "Cadastro realizado com sucesso!", id: this.lastID });
     });
 });
 
-// Ligar o servidor
+// 4. NOVA ROTA: Login (O que estava faltando!)
+app.post('/api/login-contractor', (req, res) => {
+    const { email, senha } = req.body; // O HTML de login envia 'email' e 'senha'
+
+    // Procuramos o contractor pelo email de notificação
+    const query = `SELECT * FROM contractors WHERE email_notificacao = ? AND senha = ?`;
+
+    db.get(query, [email, senha], (err, row) => {
+        if (err) {
+            console.error("❌ Erro no SQLite (Login):", err.message);
+            return res.status(500).json({ error: "Erro interno no servidor." });
+        }
+
+        if (row) {
+            console.log(`✅ Login bem-sucedido: ${row.nome_empresa}`);
+            // Retornamos os dados que o seu HTML de login espera
+            res.status(200).json({ 
+                message: "Login realizado!", 
+                contractorId: row.id, 
+                nome: row.nome_empresa 
+            });
+        } else {
+            console.log(`⚠️ Tentativa de login inválida para: ${email}`);
+            res.status(401).json({ error: "E-mail ou senha incorretos." });
+        }
+    });
+});
+
+// 5. Ligar o servidor
 app.listen(port, () => {
-    console.log(`Servidor rodando em http://localhost:${port}`);
+    console.log(`🚀 Servidor rodando em http://localhost:${port}`);
 });
