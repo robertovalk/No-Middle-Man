@@ -100,54 +100,47 @@
     <div id="contractors-list" class="container"></div>
 
     <script>
-        // 1. Recupera os dados da medição que salvamos no LocalStorage (na tela do mapa)
-        const savedData = JSON.parse(localStorage.getItem('roofData'));
-        
-        if (savedData) {
-            document.getElementById('display-address').innerText = savedData.address || "Localização atual";
-            document.getElementById('display-sqft').innerText = savedData.sqft;
-        }
+// 1. Carrega as empresas assim que a página abre
+    window.onload = async () => {
+        try {
+            const response = await fetch('http://localhost:3000/api/contractors');
+            const contractors = await response.json();
+            const container = document.getElementById('contractors-list'); // Garanta que esse ID existe no seu HTML
 
-        // 2. Busca as empresas no seu Servidor
-        async function loadContractors() {
-            try {
-                const response = await fetch('http://localhost:3000/api/contractors');
-                const contractors = await response.json();
-                
-                const list = document.getElementById('contractors-list');
-                const loading = document.getElementById('loading');
-                
-                loading.style.display = 'none';
-
-                if (contractors.length === 0) {
-                    list.innerHTML = "<p>No contractors found at the moment.</p>";
-                    return;
-                }
-
-                list.innerHTML = contractors.map(c => `
-                    <div class="card">
-                        <h3>${c.nome_empresa}</h3>
-                        <p><strong>License:</strong> ${c.numero_licenca || 'N/A'}</p>
-                        <p>📞 ${c.telefone || 'Contact via platform'}</p>
-                        <button class="btn-select" onclick="selectContractor(${c.id}, '${c.nome_empresa}')">
-                            Select Contractor
-                        </button>
-                    </div>
-                `).join('');
-            } catch (error) {
-                console.error("Erro ao carregar empresas:", error);
-                document.getElementById('loading').innerText = "Error connecting to server.";
+            if (contractors.length === 0) {
+                container.innerHTML = "<p>Nenhuma empresa disponível no momento.</p>";
+                return;
             }
-        }
 
-        // 3. Quando clica na empresa, salva o ID dela e vai para o formulário final
-        function selectContractor(id, name) {
-            localStorage.setItem('selectedContractorId', id);
-            localStorage.setItem('selectedContractorName', name);
-            window.location.href = 'final-form.html'; // Próxima etapa
+            container.innerHTML = contractors.map(c => `
+                <div class="contractor-card">
+                    <h3>${c.nome_empresa}</h3>
+                    <p>Licença: ${c.numero_licenca}</p>
+                    <button class="btn-select" onclick="chooseContractor(${c.id}, '${c.nome_empresa}')">
+                        Select Contractor
+                    </button>
+                </div>
+            `).join('');
+        } catch (err) {
+            console.error("Erro ao carregar empresas:", err);
         }
+    };
 
-        loadContractors();
+    // 2. Função para selecionar a empresa e ir para o formulário final
+    function chooseContractor(id, name) {
+        // Pega o pacotão de dados que veio do mapa
+        const completeData = JSON.parse(localStorage.getItem('completeLeadData') || '{}');
+        
+        // Adiciona a empresa escolhida aos dados
+        completeData.contractor_id = id;
+        completeData.contractor_name = name;
+
+        // Salva de novo com a empresa inclusa
+        localStorage.setItem('completeLeadData', JSON.stringify(completeData));
+
+        // Vai para a última etapa (ajuste o caminho se necessário)
+        window.location.href = '../final-form/final-form.html';
+    }
     </script>
 </body>
 </html>

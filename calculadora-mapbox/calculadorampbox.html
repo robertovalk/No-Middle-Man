@@ -210,18 +210,37 @@
         });
 
         // Clique em Get Quote (Prepara os dados para o formulário do lead)
-        document.getElementById('get-quote-btn').addEventListener('click', () => {
-            const totalArea = document.getElementById('val-sqft').innerText;
-            
-            // Dados prontos para serem salvos ou enviados ao formulário
-            const leadData = {
-                address: currentAddress,
-                area: totalArea
-            };
-            
-            console.log("Dados capturados:", leadData);
-            alert(`Ready to quote!\n\nAddress: ${currentAddress}\nCalculated Area: ${totalArea}\n\nO próximo passo abrirá o formulário para os detalhes finais.`);
-        });
+document.getElementById('get-quote-btn').addEventListener('click', () => {
+    const totalArea = document.getElementById('val-sqft').innerText;
+    const totalSquares = document.getElementById('val-squares').innerText;
+    const selectedPitch = document.getElementById('pitch-select')?.value || "1.00";
+
+    // 1. Recupera os dados de contato que foram salvos lá no index.html (modal)
+    const savedContact = JSON.parse(localStorage.getItem('userContactInfo') || '{}');
+
+    // 2. Cria o objeto completo (Contato + Medição Técnica)
+  // Dentro da função do botão "Get Quote"
+const completeLeadData = {
+    nome: localStorage.getItem('temp_lead_name'), // Pega o nome vindo do index
+    email: JSON.parse(localStorage.getItem('temp_lead_data'))?.email, // Pega o e-mail do index
+    area_sqft: totalArea, 
+    endereco_mapa: currentAddress,
+    squares: (totalArea / 100).toFixed(1),
+    pitch_factor: document.getElementById('pitch-select')?.value || "1.00"
+};
+
+// SALVAMENTO ÚNICO: Use sempre este nome de chave
+localStorage.setItem('completeLeadData', JSON.stringify(completeLeadData));
+    // 3. Salva esse "pacotão" no LocalStorage para a Vitrine e o Final Form
+    localStorage.setItem('completeLeadData', JSON.stringify(completeLeadData));
+
+    console.log("Dados consolidados para a vitrine:", completeLeadData);
+
+    // 4. Redirecionamento (saindo da pasta calculadora-mapbox para a vitrine-contractors)
+    alert(`Ready to quote!\n\nAddress: ${currentAddress}\nCalculated Area: ${totalArea} sqft\n\nAgora, selecione uma empresa para receber seu orçamento.`);
+    
+    window.location.href = '../vitrine-contractors/vitrine-contractors.html';
+});
     </script>
 </body>
 </html>

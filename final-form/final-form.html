@@ -100,31 +100,35 @@
 </div>
 
 <script>
-    // 1. Carrega os dados salvos das telas anteriores
-    const roofData = JSON.parse(localStorage.getItem('roofData'));
-    const contractorId = localStorage.getItem('selectedContractorId');
-    const contractorName = localStorage.getItem('selectedContractorName');
+    // 1. Recupera o "pacotão" de dados unificado
+    const finalData = JSON.parse(localStorage.getItem('completeLeadData') || '{}');
 
-    // Preenche o resumo na tela
-    if (roofData && contractorName) {
-        document.getElementById('summary-contractor').innerText = contractorName;
-        document.getElementById('summary-area').innerText = roofData.sqft;
-        document.getElementById('summary-address').innerText = roofData.address || "Not provided";
+    // Preenche o resumo visual na tela
+    if (finalData) {
+        document.getElementById('summary-contractor').innerText = finalData.contractor_name || "Not selected";
+        document.getElementById('summary-area').innerText = finalData.area_sqft || "0";
+        document.getElementById('summary-address').innerText = finalData.endereco_mapa || finalData.endereco || "Not provided";
+
+        // AUTOPREENCHIMENTO: Pega o que foi digitado no modal inicial (index)
+        document.getElementById('nome').value = finalData.nome || "";
+        document.getElementById('email').value = finalData.email || "";
+        document.getElementById('telefone').value = finalData.telefone || "";
     }
 
-    // 2. Envio dos dados para o Backend
+    // 2. Envio definitivo para o Banco de Dados
     document.getElementById('leadForm').addEventListener('submit', async (e) => {
         e.preventDefault();
 
+        // Monta o payload final combinando dados técnicos + inputs atuais
         const payload = {
             nome: document.getElementById('nome').value,
             email: document.getElementById('email').value,
             telefone: document.getElementById('telefone').value,
-            endereco: roofData.address,
-            area_sqft: roofData.sqft,
-            squares: roofData.squares,
-            pitch_factor: roofData.pitch,
-            contractor_id: contractorId // Aqui é onde o lead "se vincula" à empresa
+            endereco: finalData.endereco_mapa || finalData.endereco,
+            area_sqft: finalData.area_sqft,
+            squares: finalData.squares,
+            pitch_factor: finalData.pitch_factor,
+            contractor_id: finalData.contractor_id
         };
 
         try {
@@ -136,13 +140,14 @@
 
             if (response.ok) {
                 alert("✅ Success! Your information has been sent to the contractor.");
-                localStorage.clear(); // Limpa os dados para um novo uso
-                window.location.href = 'index.html'; // Volta para o início ou página de obrigado
+                localStorage.clear(); // Limpa para não misturar dados num próximo lead
+                window.location.href = '../index.html'; // Volta para a home
             } else {
-                alert("❌ Error sending data. Try again.");
+                const errorLog = await response.json();
+                alert("❌ Error: " + (errorLog.error || "Check your database columns."));
             }
         } catch (error) {
-            console.error("Erro:", error);
+            console.error("Erro fatal:", error);
             alert("❌ Connection error with the server.");
         }
     });
