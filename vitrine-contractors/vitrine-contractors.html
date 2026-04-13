@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escolha sua Contractor | No Middle Man</title>
+    <style>
+        :root {
+            --primary: #00b894;
+            --dark: #2d3436;
+            --light: #f9f9f9;
+            --white: #ffffff;
+            --shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light);
+            color: var(--dark);
+            margin: 0;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+        }
+
+        h2 { font-size: 2.5rem; margin-bottom: 10px; }
+        
+        .info-bar {
+            background: var(--white);
+            padding: 15px;
+            border-radius: 10px;
+            display: inline-block;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--white);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+        }
+
+        .card h3 { margin-top: 0; color: var(--dark); }
+
+        .card p { color: #636e72; font-size: 0.9rem; }
+
+        .btn-select {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+            transition: background 0.3s;
+        }
+
+        .btn-select:hover {
+            background-color: #00947a;
+        }
+
+        /* Loading state */
+        #loading { text-align: center; font-style: italic; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h2>Select a Professional</h2>
+        <div class="info-bar">
+            📍 Address: <strong id="display-address">---</strong> | 
+            🏠 Area: <strong id="display-sqft">0</strong> sqft
+        </div>
+    </header>
+
+    <div id="loading">Searching for contractors in your area...</div>
+    <div id="contractors-list" class="container"></div>
+
+    <script>
+        // 1. Recupera os dados da medição que salvamos no LocalStorage (na tela do mapa)
+        const savedData = JSON.parse(localStorage.getItem('roofData'));
+        
+        if (savedData) {
+            document.getElementById('display-address').innerText = savedData.address || "Localização atual";
+            document.getElementById('display-sqft').innerText = savedData.sqft;
+        }
+
+        // 2. Busca as empresas no seu Servidor
+        async function loadContractors() {
+            try {
+                const response = await fetch('http://localhost:3000/api/contractors');
+                const contractors = await response.json();
+                
+                const list = document.getElementById('contractors-list');
+                const loading = document.getElementById('loading');
+                
+                loading.style.display = 'none';
+
+                if (contractors.length === 0) {
+                    list.innerHTML = "<p>No contractors found at the moment.</p>";
+                    return;
+                }
+
+                list.innerHTML = contractors.map(c => `
+                    <div class="card">
+                        <h3>${c.nome_empresa}</h3>
+                        <p><strong>License:</strong> ${c.numero_licenca || 'N/A'}</p>
+                        <p>📞 ${c.telefone || 'Contact via platform'}</p>
+                        <button class="btn-select" onclick="selectContractor(${c.id}, '${c.nome_empresa}')">
+                            Select Contractor
+                        </button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error("Erro ao carregar empresas:", error);
+                document.getElementById('loading').innerText = "Error connecting to server.";
+            }
+        }
+
+        // 3. Quando clica na empresa, salva o ID dela e vai para o formulário final
+        function selectContractor(id, name) {
+            localStorage.setItem('selectedContractorId', id);
+            localStorage.setItem('selectedContractorName', name);
+            window.location.href = 'final-form.html'; // Próxima etapa
+        }
+
+        loadContractors();
+    </script>
+</body>
+</html>

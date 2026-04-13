@@ -22,10 +22,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
     }
 });
 
-// 3. Rota de Cadastro
+// 3. Rota de Cadastro de Empresas
 app.post('/api/cadastro-contractor', (req, res) => {
     const { nome_empresa, telefone, numero_licenca, email_notificacao, senha } = req.body;
-    
     const query = `INSERT INTO contractors (nome_empresa, telefone, numero_licenca, email_notificacao, senha) VALUES (?, ?, ?, ?, ?)`;
     
     db.run(query, [nome_empresa, telefone, numero_licenca, email_notificacao, senha], function(err) {
@@ -38,10 +37,9 @@ app.post('/api/cadastro-contractor', (req, res) => {
     });
 });
 
-// 4. NOVA ROTA: Login
+// 4. Rota de Login de Empresas
 app.post('/api/login-contractor', (req, res) => {
     const { email, senha } = req.body; 
-
     const query = `SELECT * FROM contractors WHERE email_notificacao = ? AND senha = ?`;
 
     db.get(query, [email, senha], (err, row) => {
@@ -49,7 +47,6 @@ app.post('/api/login-contractor', (req, res) => {
             console.error("❌ Erro no SQLite (Login):", err.message);
             return res.status(500).json({ error: "Erro interno no servidor." });
         }
-
         if (row) {
             console.log(`✅ Login bem-sucedido: ${row.nome_empresa}`);
             res.status(200).json({ 
@@ -58,31 +55,55 @@ app.post('/api/login-contractor', (req, res) => {
                 nome: row.nome_empresa 
             });
         } else {
-            console.log(`⚠️ Tentativa de login inválida para: ${email}`);
             res.status(401).json({ error: "E-mail ou senha incorretos." });
         }
     });
 });
 
 // ==========================================
-// 🚀 NOVA ROTA: Captura de Leads (Clientes da Calculadora)
+// 🚀 ROTAS PARA O FLUXO DO CLIENTE (VITRINE)
 // ==========================================
-app.post('/api/leads', (req, res) => {
-    // 1. Recebe os dados do formulário
-    const { nome, email, endereco, cep, telefone, area_sqft, squares, pitch_factor } = req.body;
 
-    // 2. Prepara o SQL com os nomes das colunas NOVAS (conforme seu init_db)
-    const sql = `INSERT INTO leads (nome, endereco, cep, telefone, area_sqft, squares, pitch_factor) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?)`;
+// Listar empresas para o cliente escolher
+app.get('/api/contractors', (req, res) => {
+    const sql = `SELECT id, nome_empresa, numero_licenca, website, telefone FROM contractors`;
+    db.all(sql, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// Captura de Leads (Vinculado à Empresa Escolhida)
+app.post('/api/leads', (req, res) => {
+    const { nome, email, endereco, cep, telefone, area_sqft, squares, pitch_factor, contractor_id } = req.body;
+    const sql = `INSERT INTO leads (nome, email, endereco, cep, telefone, area_sqft, squares, pitch_factor, contractor_id) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     
-    // 3. Executa a gravação
-    db.run(sql, [nome, endereco, cep, telefone, area_sqft, squares, pitch_factor], function(err) {
+    db.run(sql, [nome, email, endereco, cep, telefone, area_sqft, squares, pitch_factor, contractor_id], function(err) {
         if (err) {
             console.error('❌ Erro no SQLite (Leads):', err.message);
             return res.status(500).json({ error: err.message });
         }
-        console.log('✅ SUCESSO! Lead salvo com ID:', this.lastID);
+        console.log(`✅ Lead salvo! Vinculado à empresa ID: ${contractor_id}`);
         res.json({ success: true, id: this.lastID });
+    });
+});
+
+// ==========================================
+// 📊 ROTA PARA O DASHBOARD (PAINEL DA EMPRESA)
+// ==========================================
+
+// Buscar leads específicos de UMA empresa (usando o ID dela)
+app.get('/api/leads/:contractorId', (req, res) => {
+    const { contractorId } = req.params;
+    const sql = `SELECT * FROM leads WHERE contractor_id = ? ORDER BY data_solicitacao DESC`;
+
+    db.all(sql, [contractorId], (err, rows) => {
+        if (err) {
+            console.error('❌ Erro ao buscar leads para o Dashboard:', err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(rows);
     });
 });
 
