@@ -1,25 +1,16 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-// 1. Define onde o banco será salvo
 const dbPath = path.resolve(__dirname, 'database', 'roofing.db');
+const db = new sqlite3.Database(dbPath);
 
-// 2. Abre a conexão com o banco
-const db = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-        console.error("Erro ao abrir o banco:", err.message);
-    } else {
-        console.log("Conectado ao banco de dados SQLite.");
-    }
-});
-
-// 3. Cria as tabelas
 db.serialize(() => {
-    // ⚠️ Atenção: Isso apaga os dados atuais de contractors para resetar a estrutura
+    // Apaga as tabelas antigas para criar as novas do zero
+    db.run(`DROP TABLE IF EXISTS leads`);
     db.run(`DROP TABLE IF EXISTS contractors`);
 
-    // Tabela de Empresas (Contractors)
-    db.run(`CREATE TABLE IF NOT EXISTS contractors (
+    // Criando tabela de Empresas
+    db.run(`CREATE TABLE contractors (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nome_empresa TEXT NOT NULL,
         telefone TEXT,
@@ -30,25 +21,24 @@ db.serialize(() => {
         data_cadastro DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
-    // Tabela de Leads (Clientes da Calculadora)
-    // Atualizada para bater com o seu formulário e dados técnicos do mapa
-    db.run(`CREATE TABLE IF NOT EXISTS leads (
+    // Criando tabela de Leads (AGORA COM A COLUNA EMAIL)
+    db.run(`CREATE TABLE leads (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT,              -- Nome do cliente (do formulário)
-        endereco TEXT,          -- Endereço (capturado do geocoder)
-        cep TEXT,               -- Zip Code (do formulário)
-        telefone TEXT,          -- Telefone (do formulário)
-        area_sqft REAL,         -- Área final calculada (com inclinação)
-        squares REAL,           -- Valor em Roofing Squares
-        pitch_factor TEXT,      -- Inclinação escolhida (ex: 1.08)
-        contractor_id INTEGER,  -- ID da empresa escolhida (Etapa futura)
+        nome TEXT,
+        email TEXT,           -- Esta é a coluna que estava faltando!
+        endereco TEXT,
+        cep TEXT,
+        telefone TEXT,
+        area_sqft REAL,
+        squares REAL,
+        pitch_factor TEXT,
+        contractor_id INTEGER, -- Importante para o seu Dashboard
         status TEXT DEFAULT 'pendente',
         data_solicitacao DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (contractor_id) REFERENCES contractors (id)
     )`);
 
-    console.log("✅ Tabelas de Contractors e Leads atualizadas com sucesso!");
+    console.log("✅ BANCO DE DADOS RESETADO: Coluna 'email' adicionada com sucesso!");
 });
 
-// 4. Fecha a conexão após criar tudo
 db.close();
