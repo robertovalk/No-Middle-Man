@@ -15,9 +15,10 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
 // 3. Cria as tabelas
 db.serialize(() => {
-    // Dropamos para atualizar a estrutura com os campos do seu print
+    // ⚠️ Atenção: Isso apaga os dados atuais de contractors para resetar a estrutura
     db.run(`DROP TABLE IF EXISTS contractors`);
 
+    // Tabela de Empresas (Contractors)
     db.run(`CREATE TABLE IF NOT EXISTS contractors (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nome_empresa TEXT NOT NULL,
@@ -29,18 +30,24 @@ db.serialize(() => {
         data_cadastro DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
+    // Tabela de Leads (Clientes da Calculadora)
+    // Atualizada para bater com o seu formulário e dados técnicos do mapa
     db.run(`CREATE TABLE IF NOT EXISTS leads (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        cliente_nome TEXT,
-        cliente_email TEXT,
-        endereco TEXT,
-        medicao_area REAL,
-        orcamento_estimado REAL,
+        nome TEXT,              -- Nome do cliente (do formulário)
+        endereco TEXT,          -- Endereço (capturado do geocoder)
+        cep TEXT,               -- Zip Code (do formulário)
+        telefone TEXT,          -- Telefone (do formulário)
+        area_sqft REAL,         -- Área final calculada (com inclinação)
+        squares REAL,           -- Valor em Roofing Squares
+        pitch_factor TEXT,      -- Inclinação escolhida (ex: 1.08)
+        contractor_id INTEGER,  -- ID da empresa escolhida (Etapa futura)
         status TEXT DEFAULT 'pendente',
-        data_solicitacao DATETIME DEFAULT CURRENT_TIMESTAMP
+        data_solicitacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (contractor_id) REFERENCES contractors (id)
     )`);
 
-    console.log("Tabelas atualizadas com sucesso!");
+    console.log("✅ Tabelas de Contractors e Leads atualizadas com sucesso!");
 });
 
 // 4. Fecha a conexão após criar tudo

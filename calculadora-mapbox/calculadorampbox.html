@@ -9,13 +9,10 @@
 
     <script src='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js'></script>
     <link href='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css' rel='stylesheet' />
-
     <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.min.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.css" rel="stylesheet" />
-
     <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.0/mapbox-gl-draw.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.0/mapbox-gl-draw.css" rel="stylesheet" />
-
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
     <style>
@@ -38,7 +35,6 @@
         .page-wrapper { max-width: 900px; margin: 0 auto; padding: 40px 24px; }
         .page-header { text-align: center; margin-bottom: 30px; }
 
-        /* FIX: Barra de Pesquisa corrigida */
         .search-container {
             display: flex;
             align-items: center;
@@ -72,7 +68,6 @@
         }
         .btn-start:hover { background: #333; }
 
-        /* Mapa */
         .map-box { 
             position: relative; 
             height: 500px; 
@@ -83,7 +78,14 @@
         }
         #map { height: 100%; width: 100%; background-color: #f0f0f0; }
 
-        /* Painel de Resultados */
+        /* Estilo do Seletor de Inclinação */
+        #pitch-selector {
+            position: absolute; top: 10px; right: 10px; 
+            background: white; padding: 10px; border-radius: 8px; 
+            z-index: 5; border: 1px solid var(--border); 
+            display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
         #result-panel {
             position: absolute; bottom: 20px; left: 20px; right: 20px;
             background: white; padding: 20px; border-radius: 12px;
@@ -115,10 +117,22 @@
 
         <div class="map-box">
             <div id="map"></div>
+            
+            <div id="pitch-selector">
+                <label style="font-size: 10px; font-weight: bold; display: block; margin-bottom: 5px;">ROOF PITCH</label>
+                <select id="pitch-value" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; width: 100%; cursor: pointer;">
+                    <option value="1.0">Flat (0/12)</option>
+                    <option value="1.03">Low (3/12)</option>
+                    <option value="1.08" selected>Standard (5/12)</option>
+                    <option value="1.20">Steep (8/12)</option>
+                    <option value="1.41">Extreme (12/12)</option>
+                </select>
+            </div>
+
             <div id="result-panel">
                 <div class="metric-group">
                     <div>
-                        <div class="metric-label">Roof Area</div>
+                        <div class="metric-label">Actual Roof Area</div>
                         <div class="metric-value" id="val-sqft">0 sqft</div>
                     </div>
                     <div>
@@ -126,25 +140,24 @@
                         <div class="metric-value" id="val-squares">0 sq</div>
                     </div>
                 </div>
-                <button class="btn-start" style="background:var(--blue)">Get Quote</button>
+                <button class="btn-start" id="get-quote-btn" style="background:var(--blue)">Get Quote</button>
             </div>
         </div>
     </main>
 
     <script>
-        // Use o seu Token aqui
         const token = 'pk.eyJ1IjoiMW1pZGRsZW1hbi0iLCJhIjoiY21ucnloMXBmMDdnNTJ6cTA5enhuZ3J5dyJ9.l-AYio3UMFzHSz7tJwo-uA';
         mapboxgl.accessToken = token;
 
-        // Inicializa o Mapa
+        let currentAddress = ""; // Armazena o endereço pesquisado
+
         const map = new mapboxgl.Map({
             container: 'map',
             style: 'mapbox://styles/mapbox/satellite-v9',
-            center: [-60.0217, -3.1190], // Manaus como padrão
+            center: [-60.0217, -3.1190], 
             zoom: 2
         });
 
-        // Adiciona Busca
         const geocoder = new MapboxGeocoder({
             accessToken: mapboxgl.accessToken,
             mapboxgl: mapboxgl,
@@ -153,36 +166,62 @@
         });
         document.getElementById('geocoder').appendChild(geocoder.onAdd(map));
 
-        // Adiciona Ferramenta de Desenho
+        // Captura o endereço ao selecionar um resultado
+        geocoder.on('result', (e) => {
+            currentAddress = e.result.place_name;
+        });
+
         const draw = new MapboxDraw({
             displayControlsDefault: false,
             controls: { polygon: true, trash: true }
         });
         map.addControl(draw, 'top-left');
 
-        // Lógica do Botão START
         document.getElementById('start-btn').addEventListener('click', () => {
             const input = document.querySelector('.mapboxgl-ctrl-geocoder--input');
-            if(input.value) {
-                geocoder.query(input.value);
-            }
+            if(input.value) geocoder.query(input.value);
         });
 
-        // Cálculo de Área
+        // Função para calcular área real com base na inclinação
         function updateArea() {
             const data = draw.getAll();
             if (data.features.length > 0) {
-                const area = turf.area(data);
-                const areaSqFt = area * 10.7639;
-                document.getElementById('val-sqft').innerText = Math.round(areaSqFt).toLocaleString() + ' sqft';
-                document.getElementById('val-squares').innerText = (areaSqFt / 100).toFixed(1) + ' sq';
+                const areaPlana = turf.area(data); // Metros quadrados planos
+                const pitchFactor = parseFloat(document.getElementById('pitch-value').value);
+                
+                // Conversão para SqFt e aplicação do fator de inclinação
+                const areaRealSqFt = (areaPlana * 10.7639) * pitchFactor;
+                
+                document.getElementById('val-sqft').innerText = Math.round(areaRealSqFt).toLocaleString() + ' sqft';
+                document.getElementById('val-squares').innerText = (areaRealSqFt / 100).toFixed(1) + ' sq';
+                
                 document.getElementById('result-panel').style.display = 'flex';
+                document.getElementById('pitch-selector').style.display = 'block';
             }
         }
 
+        // Eventos para atualizar o cálculo
+        document.getElementById('pitch-value').addEventListener('change', updateArea);
         map.on('draw.create', updateArea);
         map.on('draw.update', updateArea);
-        map.on('draw.delete', () => { document.getElementById('result-panel').style.display = 'none'; });
+        map.on('draw.delete', () => { 
+            document.getElementById('result-panel').style.display = 'none'; 
+            document.getElementById('pitch-selector').style.display = 'none';
+        });
+
+        // Clique em Get Quote (Prepara os dados para o formulário do lead)
+        document.getElementById('get-quote-btn').addEventListener('click', () => {
+            const totalArea = document.getElementById('val-sqft').innerText;
+            
+            // Dados prontos para serem salvos ou enviados ao formulário
+            const leadData = {
+                address: currentAddress,
+                area: totalArea
+            };
+            
+            console.log("Dados capturados:", leadData);
+            alert(`Ready to quote!\n\nAddress: ${currentAddress}\nCalculated Area: ${totalArea}\n\nO próximo passo abrirá o formulário para os detalhes finais.`);
+        });
     </script>
 </body>
 </html>

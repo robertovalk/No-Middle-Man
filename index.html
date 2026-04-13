@@ -759,37 +759,91 @@
         </div>
     </footer>
 
-    <div id="contactModal" class="modal">
+<div id="contactModal" class="modal">
         <div class="modal-content">
             <span class="close-modal">&times;</span>
             <h2>Complete your request</h2>
             <form id="leadForm">
-                <div class="input-group"><label>Full Name</label><input type="text" id="name" required></div>
-                <div class="input-group"><label>Address</label><input type="text" id="address" required></div>
-                <div class="row">
-                    <div class="input-group" style="flex:1;"><label>Zip Code</label><input type="text" id="zipcode" required></div>
-                    <div class="input-group" style="flex:1;"><label>Phone</label><input type="tel" id="phone" required></div>
+                <div class="input-group">
+                    <label>Full Name</label>
+                    <input type="text" id="name" required>
                 </div>
-                <button type="submit" class="btn-submit">Submit & Open WhatsApp</button>
+                <div class="input-group">
+                    <label>Email Address</label>
+                    <input type="email" id="email" required> </div>
+                <div class="input-group">
+                    <label>Address</label>
+                    <input type="text" id="address" required>
+                </div>
+                <div class="row">
+                    <div class="input-group" style="flex:1;">
+                        <label>Zip Code</label>
+                        <input type="text" id="zipcode" required>
+                    </div>
+                    <div class="input-group" style="flex:1;">
+                        <label>Phone</label>
+                        <input type="tel" id="phone" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn-submit">Next: Measure My Roof</button>
             </form>
         </div>
     </div>
 
     <script>
-        const modal = document.getElementById("contactModal");
+const modal = document.getElementById("contactModal");
         const closeBtn = document.querySelector(".close-modal");
 
+        // Abre o modal ao clicar nos botões de seleção
         document.querySelectorAll('.btn-select').forEach(btn => {
-            btn.onclick = (e) => { e.preventDefault(); modal.classList.add('active'); }
+            btn.onclick = (e) => { 
+                // Se for o botão do processo direto, abre o modal antes de ir pro mapa
+                if(btn.getAttribute('href').includes('calculadorampbox')) {
+                    e.preventDefault(); 
+                    modal.classList.add('active'); 
+                }
+            }
         });
 
         closeBtn.onclick = () => modal.classList.remove('active');
         window.onclick = (e) => { if(e.target == modal) modal.classList.remove('active'); }
 
-        document.getElementById('leadForm').onsubmit = (e) => {
+        // LÓGICA DE ENVIO DO FORMULÁRIO
+        document.getElementById('leadForm').onsubmit = async (e) => {
             e.preventDefault();
-            modal.classList.remove('active');
-            window.location.href = './calculadora-mapbox/calculadorampbox.html';
+            
+            const leadData = {
+                nome: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                endereco: document.getElementById('address').value,
+                cep: document.getElementById('zipcode').value,
+                telefone: document.getElementById('phone').value
+            };
+
+            // Salvando temporariamente para usar no mapa depois
+            localStorage.setItem('temp_lead_name', leadData.nome);
+            localStorage.setItem('temp_lead_data', JSON.stringify(leadData));
+
+            try {
+                // Enviando para o seu novo server.js
+                const response = await fetch('http://localhost:3000/api/leads', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(leadData)
+                });
+
+                if (response.ok) {
+                    console.log("Lead pré-cadastrado com sucesso!");
+                    window.location.href = './calculadora-mapbox/calculadorampbox.html';
+                } else {
+                    // Se o servidor estiver desligado, ele ainda deixa ir para o mapa para não travar o usuário
+                    console.warn("Servidor offline, prosseguindo para o mapa...");
+                    window.location.href = './calculadora-mapbox/calculadorampbox.html';
+                }
+            } catch (error) {
+                console.error("Erro ao conectar com o servidor:", error);
+                window.location.href = './calculadora-mapbox/calculadorampbox.html';
+            }
         }
     </script>
 </body>

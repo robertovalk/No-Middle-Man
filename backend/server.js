@@ -38,11 +38,10 @@ app.post('/api/cadastro-contractor', (req, res) => {
     });
 });
 
-// 4. NOVA ROTA: Login (O que estava faltando!)
+// 4. NOVA ROTA: Login
 app.post('/api/login-contractor', (req, res) => {
-    const { email, senha } = req.body; // O HTML de login envia 'email' e 'senha'
+    const { email, senha } = req.body; 
 
-    // Procuramos o contractor pelo email de notificação
     const query = `SELECT * FROM contractors WHERE email_notificacao = ? AND senha = ?`;
 
     db.get(query, [email, senha], (err, row) => {
@@ -53,7 +52,6 @@ app.post('/api/login-contractor', (req, res) => {
 
         if (row) {
             console.log(`✅ Login bem-sucedido: ${row.nome_empresa}`);
-            // Retornamos os dados que o seu HTML de login espera
             res.status(200).json({ 
                 message: "Login realizado!", 
                 contractorId: row.id, 
@@ -63,6 +61,28 @@ app.post('/api/login-contractor', (req, res) => {
             console.log(`⚠️ Tentativa de login inválida para: ${email}`);
             res.status(401).json({ error: "E-mail ou senha incorretos." });
         }
+    });
+});
+
+// ==========================================
+// 🚀 NOVA ROTA: Captura de Leads (Clientes da Calculadora)
+// ==========================================
+app.post('/api/leads', (req, res) => {
+    // 1. Recebe os dados do formulário
+    const { nome, email, endereco, cep, telefone, area_sqft, squares, pitch_factor } = req.body;
+
+    // 2. Prepara o SQL com os nomes das colunas NOVAS (conforme seu init_db)
+    const sql = `INSERT INTO leads (nome, endereco, cep, telefone, area_sqft, squares, pitch_factor) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`;
+    
+    // 3. Executa a gravação
+    db.run(sql, [nome, endereco, cep, telefone, area_sqft, squares, pitch_factor], function(err) {
+        if (err) {
+            console.error('❌ Erro no SQLite (Leads):', err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        console.log('✅ SUCESSO! Lead salvo com ID:', this.lastID);
+        res.json({ success: true, id: this.lastID });
     });
 });
 
